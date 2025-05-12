@@ -6,17 +6,20 @@ using UnityEditor;
 using UnityEditor.Tilemaps;
 using UnityEngine;
 
-public class GridGenerator : LiemMonoBehaviour
+public class BoardManager : LiemMonoBehaviour
 {
     [SerializeField] protected int width = 4;
     [SerializeField] protected int height = 5;
     [SerializeField] protected float cellSize = 1f;
+    [SerializeField] private List<GameObject> gemPrefabs;
+
     public GameObject titlePrefab;
 
     protected override void Start()
     {
         base.Start();
         this.GenerateGrid();
+        this.FitBoardToCamera();
     }
 
     protected override void LoadComponents()
@@ -34,6 +37,7 @@ public class GridGenerator : LiemMonoBehaviour
         prefabTransform.gameObject.SetActive(false);
         Debug.LogWarning(transform.name + " LoadTitlePrefab", gameObject);
     }
+
     protected virtual Transform FindOrCreateTilesContainer()
     {
         Transform tileContainer = transform.Find("Holder");
@@ -63,7 +67,31 @@ public class GridGenerator : LiemMonoBehaviour
                 tile.SetActive(true);
                 tile.transform.parent = tileContainer;
                 tile.transform.localScale = Vector3.one * cellSize;
+
+                int randomIndex = UnityEngine.Random.Range(0, gemPrefabs.Count);
+                GameObject gem = Instantiate(gemPrefabs[randomIndex], tile.transform.position, Quaternion.identity);
+                gem.transform.SetParent(tile.transform);
+                gem.transform.localScale = Vector3.one * 0.21f;
             }
         }
+    }
+
+    protected virtual void FitBoardToCamera()
+    {
+        Camera cam = Camera.main;
+        if (cam == null || !cam.orthographic) return;
+
+        float screenHeight = 2f * cam.orthographicSize;
+        float screenWidth = screenHeight * cam.aspect;
+
+        float boardPixelWidth = width * cellSize;
+        float boardPixelHeight = height * cellSize;
+
+        float scaleX = screenWidth / boardPixelWidth;
+        float scaleY = screenHeight / boardPixelHeight;
+
+        float finalScale = Mathf.Min(scaleX, scaleY);
+
+        transform.localScale = new Vector3(finalScale, finalScale, 1f);
     }
 }
