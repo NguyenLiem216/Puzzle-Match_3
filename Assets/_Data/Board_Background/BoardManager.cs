@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using UnityEditor;
-using UnityEditor.Tilemaps;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 public class BoardManager : LiemMonoBehaviour
@@ -14,6 +9,9 @@ public class BoardManager : LiemMonoBehaviour
     [SerializeField] private List<GameObject> gemPrefabs;
 
     public GameObject titlePrefab;
+
+    private GameObject selectedTile;
+    private Color originalTileColor = Color.white;
 
     protected override void Start()
     {
@@ -68,10 +66,17 @@ public class BoardManager : LiemMonoBehaviour
                 tile.transform.parent = tileContainer;
                 tile.transform.localScale = Vector3.one * cellSize;
 
-                int randomIndex = UnityEngine.Random.Range(0, gemPrefabs.Count);
+                int randomIndex = Random.Range(0, gemPrefabs.Count);
                 GameObject gem = Instantiate(gemPrefabs[randomIndex], tile.transform.position, Quaternion.identity);
                 gem.transform.SetParent(tile.transform);
                 gem.transform.localScale = Vector3.one * 0.21f;
+
+                // Setup Gem data
+                Gem gemScript = gem.GetComponent<Gem>();
+                if (gemScript != null)
+                {
+                    gemScript.SetData(x, y, gemPrefabs[randomIndex].name, this);
+                }
             }
         }
     }
@@ -94,4 +99,33 @@ public class BoardManager : LiemMonoBehaviour
 
         transform.localScale = new Vector3(finalScale, finalScale, 1f);
     }
+
+    public void HighlightGemTile(Gem gem)
+    {
+        if (selectedTile != null)
+        {
+            var sr = selectedTile.GetComponent<SpriteRenderer>();
+            if (sr != null) sr.color = originalTileColor;
+        }
+
+        GameObject tile = gem.transform.parent.gameObject;
+        selectedTile = tile;
+
+        var tileSR = tile.GetComponent<SpriteRenderer>();
+        if (tileSR != null)
+        {
+            originalTileColor = tileSR.color;
+            tileSR.color = new Color(1f, 0.9f, 0f, 1f);
+        }
+    }
+    public void UnhighlightGemTile(Gem gem)
+    {
+        if (selectedTile != null)
+        {
+            var sr = selectedTile.GetComponent<SpriteRenderer>();
+            if (sr != null) sr.color = originalTileColor;
+            selectedTile = null;
+        }
+    }
+
 }
