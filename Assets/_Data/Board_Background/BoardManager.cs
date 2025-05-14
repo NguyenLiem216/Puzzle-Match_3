@@ -1,12 +1,11 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class BoardManager : LiemMonoBehaviour
 {
-    [SerializeField] protected int width = 4;
-    [SerializeField] protected int height = 5;
-    [SerializeField] protected float cellSize = 1f;
-    [SerializeField] private List<GameObject> gemPrefabs;
+    public int width = 4;
+    public int height = 5;
+    public float cellSize = 1f;
+
 
     public GameObject titlePrefab;
 
@@ -33,16 +32,12 @@ public class BoardManager : LiemMonoBehaviour
         if (prefabTransform == null) return;
         this.titlePrefab = prefabTransform.gameObject;
         prefabTransform.gameObject.SetActive(false);
-        Debug.LogWarning(transform.name + " LoadTitlePrefab", gameObject);
     }
 
     protected virtual Transform FindOrCreateTilesContainer()
     {
         Transform tileContainer = transform.Find("Holder");
-        if (tileContainer != null)
-        {
-            DestroyImmediate(tileContainer.gameObject);
-        }
+        if (tileContainer != null) DestroyImmediate(tileContainer.gameObject);
         GameObject newContainer = new GameObject("Holder");
         newContainer.transform.parent = this.transform;
         newContainer.transform.localPosition = Vector3.zero;
@@ -52,6 +47,7 @@ public class BoardManager : LiemMonoBehaviour
     protected virtual void GenerateGrid()
     {
         Transform tileContainer = this.FindOrCreateTilesContainer();
+
         for (int x = 0; x < width; x++)
         {
             for (int y = 0; y < height; y++)
@@ -66,17 +62,7 @@ public class BoardManager : LiemMonoBehaviour
                 tile.transform.parent = tileContainer;
                 tile.transform.localScale = Vector3.one * cellSize;
 
-                int randomIndex = Random.Range(0, gemPrefabs.Count);
-                GameObject gem = Instantiate(gemPrefabs[randomIndex], tile.transform.position, Quaternion.identity);
-                gem.transform.SetParent(tile.transform);
-                gem.transform.localScale = Vector3.one * 0.21f;
-
-                // Setup Gem data
-                Gem gemScript = gem.GetComponent<Gem>();
-                if (gemScript != null)
-                {
-                    gemScript.SetData(x, y, gemPrefabs[randomIndex].name, this);
-                }
+                GemManager.Instance.SpawnGem(x, y, tile.transform);
             }
         }
     }
@@ -96,7 +82,6 @@ public class BoardManager : LiemMonoBehaviour
         float scaleY = screenHeight / boardPixelHeight;
 
         float finalScale = Mathf.Min(scaleX, scaleY);
-
         transform.localScale = new Vector3(finalScale, finalScale, 1f);
     }
 
@@ -118,6 +103,7 @@ public class BoardManager : LiemMonoBehaviour
             tileSR.color = new Color(1f, 0.9f, 0f, 1f);
         }
     }
+
     public void UnhighlightGemTile(Gem gem)
     {
         if (selectedTile != null)
@@ -127,5 +113,4 @@ public class BoardManager : LiemMonoBehaviour
             selectedTile = null;
         }
     }
-
 }
