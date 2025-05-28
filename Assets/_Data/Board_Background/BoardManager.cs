@@ -1,4 +1,7 @@
-﻿using UnityEngine;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
 
 public class BoardManager : LiemMonoBehaviour
 {
@@ -11,13 +14,27 @@ public class BoardManager : LiemMonoBehaviour
 
     private GameObject selectedTile;
     private Color originalTileColor = Color.white;
+    private SpriteRenderer selectedTileSpriteRenderer;
 
     protected override void Start()
     {
         base.Start();
         this.GenerateGrid();
         this.FitBoardToCamera();
+
     }
+    public IEnumerator HandleInitialMatches()
+    {
+        yield return null; // đợi 1 frame để gem được spawn xong
+
+        List<Gem> initialMatched = GemManager.Instance.CheckMatch();
+        if (initialMatched.Count > 0)
+        {
+            GemManager.Instance.RemoveMatchedGems(initialMatched);
+            yield return StartCoroutine(GemManager.Instance.DropGemsCoroutine());
+        }
+    }
+
 
     protected override void LoadComponents()
     {
@@ -38,7 +55,7 @@ public class BoardManager : LiemMonoBehaviour
     {
         Transform tileContainer = transform.Find("Holder");
         if (tileContainer != null) DestroyImmediate(tileContainer.gameObject);
-        GameObject newContainer = new GameObject("Holder");
+        GameObject newContainer = new("Holder");
         newContainer.transform.parent = this.transform;
         newContainer.transform.localPosition = Vector3.zero;
         return newContainer.transform;
@@ -52,7 +69,7 @@ public class BoardManager : LiemMonoBehaviour
         {
             for (int y = 0; y < height; y++)
             {
-                Vector2 position = new Vector2(
+                Vector2 position = new(
                     x * cellSize - (width * cellSize) / 2f + cellSize / 2f,
                     y * cellSize - (height * cellSize) / 2f + cellSize / 2f
                 );
@@ -65,7 +82,11 @@ public class BoardManager : LiemMonoBehaviour
                 GemManager.Instance.SpawnGem(x, y, tile.transform);
             }
         }
+
+        // Chỉ gọi 1 lần sau khi tạo xong grid
+        StartCoroutine(HandleInitialMatches());
     }
+
 
     protected virtual void FitBoardToCamera()
     {
@@ -89,16 +110,16 @@ public class BoardManager : LiemMonoBehaviour
     {
         if (selectedTile != null)
         {
-            var sr = selectedTile.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.color = originalTileColor;
+            if (selectedTile.TryGetComponent<SpriteRenderer>(out var sr)) sr.color = originalTileColor;
         }
 
         GameObject tile = gem.transform.parent.gameObject;
         selectedTile = tile;
 
-        var tileSR = tile.GetComponent<SpriteRenderer>();
-        if (tileSR != null)
+        Transform modelTransform = tile.transform.Find("Model");
+        if (modelTransform != null && modelTransform.TryGetComponent<SpriteRenderer>(out var tileSR))
         {
+            selectedTileSpriteRenderer = tileSR;
             originalTileColor = tileSR.color;
             tileSR.color = new Color(1f, 0.9f, 0f, 1f);
         }
@@ -106,11 +127,17 @@ public class BoardManager : LiemMonoBehaviour
 
     public void UnhighlightGemTile(Gem gem)
     {
-        if (selectedTile != null)
+        if (gem == null)
         {
-            var sr = selectedTile.GetComponent<SpriteRenderer>();
-            if (sr != null) sr.color = originalTileColor;
+            throw new ArgumentNullException(nameof(gem));
+        }
+
+        if (selectedTileSpriteRenderer != null)
+        {
+            selectedTileSpriteRenderer.color = originalTileColor;
+            selectedTileSpriteRenderer = null;
             selectedTile = null;
         }
     }
+
 }

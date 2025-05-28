@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 
 [RequireComponent(typeof(BoxCollider2D))]
-public class Gem : MonoBehaviour
+public class Gem : LiemMonoBehaviour
 {
     public int x, y;
     public string gemType;
@@ -11,10 +11,22 @@ public class Gem : MonoBehaviour
         InputManager.Instance.OnGemClicked(this);
     }
 
-    public void SetData(int x, int y, string type)
+    protected override void LoadComponents()
+    {
+        base.LoadComponents();
+        this.LoadGemType();
+    }
+
+    protected virtual void LoadGemType()
+    {
+        if (!string.IsNullOrEmpty(this.gemType)) return;
+        this.gemType = gameObject.name;
+        Debug.Log($"GemType loaded: {gemType}", gameObject);
+    }
+
+    public void SetData(int x, int y)
     {
         this.x = x;
         this.y = y;
-        this.gemType = type;
     }
 }
