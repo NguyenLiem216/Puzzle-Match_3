@@ -5,6 +5,8 @@ using UnityEngine;
 
 public class BoardManager : LiemMonoBehaviour
 {
+
+    [SerializeField] protected int spawnCount = 0;
     public int width = 4;
     public int height = 5;
     public float cellSize = 1f;
@@ -27,13 +29,20 @@ public class BoardManager : LiemMonoBehaviour
     {
         yield return null; // đợi 1 frame để gem được spawn xong
 
-        List<Gem> initialMatched = GemManager.Instance.CheckMatch();
-        if (initialMatched.Count > 0)
+        while (true)
         {
+            List<Gem> initialMatched = GemManager.Instance.CheckMatch();
+            if (initialMatched.Count == 0)
+                break;
+
             GemManager.Instance.RemoveMatchedGems(initialMatched);
-            yield return StartCoroutine(GemManager.Instance.DropGemsCoroutine());
+            yield return new WaitForSeconds(0.3f); // Đợi gem nổ
+
+            yield return StartCoroutine(GemManager.Instance.FillBoard()); // Đợi fill xong
+            yield return new WaitForSeconds(0.1f); // Chờ nhỏ
         }
     }
+
 
 
     protected override void LoadComponents()
@@ -54,7 +63,7 @@ public class BoardManager : LiemMonoBehaviour
     protected virtual Transform FindOrCreateTilesContainer()
     {
         Transform tileContainer = transform.Find("Holder");
-        if (tileContainer != null) DestroyImmediate(tileContainer.gameObject);
+        if (tileContainer != null) Destroy(tileContainer.gameObject);       
         GameObject newContainer = new("Holder");
         newContainer.transform.parent = this.transform;
         newContainer.transform.localPosition = Vector3.zero;
@@ -63,6 +72,7 @@ public class BoardManager : LiemMonoBehaviour
 
     protected virtual void GenerateGrid()
     {
+        this.spawnCount = 0;
         Transform tileContainer = this.FindOrCreateTilesContainer();
 
         for (int x = 0; x < width; x++)
@@ -75,6 +85,8 @@ public class BoardManager : LiemMonoBehaviour
                 );
 
                 GameObject tile = Instantiate(titlePrefab, position, Quaternion.identity);
+                this.spawnCount++;
+                this.UpdateName(tile.transform, x, y);
                 tile.SetActive(true);
                 tile.transform.parent = tileContainer;
                 tile.transform.localScale = Vector3.one * cellSize;
@@ -83,8 +95,12 @@ public class BoardManager : LiemMonoBehaviour
             }
         }
 
-        // Chỉ gọi 1 lần sau khi tạo xong grid
         StartCoroutine(HandleInitialMatches());
+    }
+
+    protected virtual void UpdateName(Transform newObject, int x, int y)
+    {
+        newObject.name = $"{titlePrefab.name}_({x},{y})";
     }
 
 
@@ -139,5 +155,4 @@ public class BoardManager : LiemMonoBehaviour
             selectedTile = null;
         }
     }
-
 }

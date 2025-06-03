@@ -7,21 +7,23 @@ public class InputManager : MonoBehaviour
     public static InputManager Instance;
 
     private Gem selectedGem;
+    private BoardManager board;
 
     private void Awake()
     {
         if (Instance == null) Instance = this;
         else Destroy(gameObject);
+
+        this.board = FindObjectOfType<BoardManager>();
     }
+
 
     public void OnGemClicked(Gem gem)
     {
-        var board = FindObjectOfType<BoardManager>();
-
         if (selectedGem == null)
         {
             selectedGem = gem;
-            if (board != null) board.HighlightGemTile(gem);
+            if (this.board != null) this.board.HighlightGemTile(gem);
         }
         else
         {
@@ -29,34 +31,38 @@ public class InputManager : MonoBehaviour
             {
                 //GemManager.Instance.SwapGems(selectedGem, gem);
                 StartCoroutine(SwapAndHandle(selectedGem, gem));
-                if (board != null) board.UnhighlightGemTile(selectedGem);
+                if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
 
                 selectedGem = null;
             }
             else
             {
-                if (board != null) board.UnhighlightGemTile(selectedGem);
+                if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
                 selectedGem = gem;
-                if (board != null) board.HighlightGemTile(gem);
+                if (this.board != null) this.board.HighlightGemTile(gem);
             }
         }
     }
 
     private IEnumerator SwapAndHandle(Gem a, Gem b)
     {
+        if (GemManager.Instance == null) yield break;
+
         GemManager.Instance.SwapGems(a, b);
-        yield return new WaitForSeconds(0.15f); // Cho animation swap chạy (nếu có)
+        yield return new WaitForSeconds(0.15f);
 
         var matched = GemManager.Instance.CheckMatch();
         if (matched.Count == 0)
         {
-            GemManager.Instance.SwapGems(a, b); // revert
+            GemManager.Instance.SwapGems(a, b);
         }
         else
         {
+            UIManager.Instance.UseMove(); // giảm moves sau swap
             yield return StartCoroutine(HandleMatchesAfterSwap());
         }
     }
+
 
 
     private bool AreAdjacent(Gem a, Gem b)
@@ -75,11 +81,10 @@ public class InputManager : MonoBehaviour
                 break;
 
             GemManager.Instance.RemoveMatchedGems(matched);
-            yield return new WaitForSeconds(0.1f);
+            yield return new WaitForSeconds(0.3f); // Đợi gem nổ
 
-            yield return StartCoroutine(GemManager.Instance.DropGemsCoroutine());
-
-            yield return new WaitForSeconds(0.2f); // Cho drop xong và ổn định
+            yield return StartCoroutine(GemManager.Instance.FillBoard()); // <-- Đợi fill xong
+            yield return new WaitForSeconds(0.1f); // Đợi nhỏ sau fill
         }
     }
 

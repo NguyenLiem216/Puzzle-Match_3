@@ -26,17 +26,6 @@ public class GemManager : LiemMonoBehaviour
         board = FindObjectOfType<BoardManager>();
     }
 
-    private bool initialMatchesHandled = false;
-
-    protected virtual void Update()
-    {
-        if (!initialMatchesHandled && board != null)
-        {
-            StartCoroutine(board.HandleInitialMatches());
-            initialMatchesHandled = true;
-        }
-    }
-
     protected override void LoadComponents()
     {
         base.LoadComponents();
@@ -45,7 +34,7 @@ public class GemManager : LiemMonoBehaviour
 
     protected virtual void LoadGems()
     {
-        if (this.gemPrefabs != null && this.gemPrefabs.Count > 0) return;
+        if (this.gemPrefabs?.Count > 0) return;
         foreach (Transform child in transform)
         {
             GameObject obj = child.gameObject;
@@ -56,35 +45,120 @@ public class GemManager : LiemMonoBehaviour
     }
 
 
+    //public Gem SpawnGem(int x, int y, Transform parent)
+    //{
+    //    int randomIndex = Random.Range(0, gemPrefabs.Count);
+    //    GameObject gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
+    //    gemGO.transform.localScale = Vector3.one * 0.21f;
+    //    gemGO.transform.localPosition = Vector3.zero;
+
+    //    if (gemGO.TryGetComponent<Gem>(out var gem))
+    //    {
+    //        gem.SetData(x, y);
+    //        gems.Add(gem);
+    //    }
+    //    gem.gameObject.SetActive(true);
+
+    //    return gem;
+    //}
     public Gem SpawnGem(int x, int y, Transform parent)
     {
-        int randomIndex = Random.Range(0, gemPrefabs.Count);
-        GameObject gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
-        gemGO.transform.localScale = Vector3.one * 0.21f;
-        gemGO.transform.localPosition = Vector3.zero;
+        int maxTry = 5;
+        Gem gem = null;
+        bool foundValid = false;
 
-        if (gemGO.TryGetComponent<Gem>(out var gem))
+        GameObject gemGO;
+        for (int tryCount = 0; tryCount < maxTry; tryCount++)
         {
-            gem.SetData(x, y);
-            gems.Add(gem);
-        }
-        gem.gameObject.SetActive(true);
+            int randomIndex = Random.Range(0, gemPrefabs.Count);
+            gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
+            gemGO.transform.localScale = Vector3.one * 0.21f;
+            gemGO.transform.localPosition = Vector3.zero;
 
+            if (gemGO.TryGetComponent<Gem>(out gem))
+            {
+                gem.SetData(x, y);
+
+                if (!WouldFormMatch(x, y, gem.gemType))
+                {
+                    foundValid = true;
+                    break; // Tìm được viên không match
+                }
+            }
+            Destroy(gemGO); // Destroy nếu không hợp lệ
+        }
+
+        if (!foundValid)
+        {
+            // Nếu thử 5 lần mà không tìm ra -> phải accept viên random
+            int randomIndex = Random.Range(0, gemPrefabs.Count);
+            gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
+            gemGO.transform.localScale = Vector3.one * 0.21f;
+            gemGO.transform.localPosition = Vector3.zero;
+
+            if (gemGO.TryGetComponent<Gem>(out gem))
+            {
+                gem.SetData(x, y);
+            }
+        }
+
+        gems.Add(gem);
+        gem.transform.SetParent(parent);
+        gem.gameObject.SetActive(true);
         return gem;
+    }
+
+
+    private bool WouldFormMatch(int x, int y, string gemType)
+    {
+        // Check horizontal
+        int matchLeft = 0;
+        int matchRight = 0;
+
+        // Check left
+        if (GetGemAt(x - 1, y) != null && GetGemAt(x - 1, y).gemType == gemType)
+            matchLeft++;
+        if (GetGemAt(x - 2, y) != null && GetGemAt(x - 2, y).gemType == gemType)
+            matchLeft++;
+
+        // Check right
+        if (GetGemAt(x + 1, y) != null && GetGemAt(x + 1, y).gemType == gemType)
+            matchRight++;
+        if (GetGemAt(x + 2, y) != null && GetGemAt(x + 2, y).gemType == gemType)
+            matchRight++;
+
+        if (matchLeft >= 2 || matchRight >= 2 || (matchLeft == 1 && matchRight == 1))
+            return true;
+
+        // Check vertical
+        int matchDown = 0;
+        int matchUp = 0;
+
+        if (GetGemAt(x, y - 1) != null && GetGemAt(x, y - 1).gemType == gemType)
+            matchDown++;
+        if (GetGemAt(x, y - 2) != null && GetGemAt(x, y - 2).gemType == gemType)
+            matchDown++;
+
+        if (GetGemAt(x, y + 1) != null && GetGemAt(x, y + 1).gemType == gemType)
+            matchUp++;
+        if (GetGemAt(x, y + 2) != null && GetGemAt(x, y + 2).gemType == gemType)
+            matchUp++;
+
+        if (matchDown >= 2 || matchUp >= 2 || (matchDown == 1 && matchUp == 1))
+            return true;
+
+        return false;
     }
 
 
     public void SwapGems(Gem a, Gem b)
     {
-        // Swap vị trí thực tế
-        (b.transform.position, a.transform.position) = (a.transform.position, b.transform.position);
+        var parentA = a.transform.parent;
+        var parentB = b.transform.parent;
 
-        // Swap dữ liệu logic (tọa độ lưới)
+        (b.transform.position, a.transform.position) = (a.transform.position, b.transform.position);
         (a.x, a.y, b.x, b.y) = (b.x, b.y, a.x, a.y);
 
-        // Swap cha
-        Transform parentA = a.transform.parent;
-        Transform parentB = b.transform.parent;
         a.transform.SetParent(parentB);
         b.transform.SetParent(parentA);
     }
@@ -94,63 +168,13 @@ public class GemManager : LiemMonoBehaviour
         return gems.FirstOrDefault(g => g.x == x && g.y == y);
     }
 
-    //public List<Gem> CheckMatch()
-    //{
-    //    int width = board.width;
-    //    int height = board.height;
 
-    //    List<Gem> matchedGems = new();
-
-    //    for (int x = 0; x < width; x++)
-    //    {
-    //        for (int y = 0; y < height; y++)
-    //        {
-    //            Gem currentGem = GetGemAt(x, y);
-    //            if (currentGem == null) continue;
-
-    //            // Kiểm tra hàng ngang
-    //            List<Gem> horizontalMatches = new() { currentGem };
-    //            for (int i = 1; x + i < width; i++)
-    //            {
-    //                Gem nextGem = GetGemAt(x + i, y);
-    //                if (nextGem != null && nextGem.gemType == currentGem.gemType)
-    //                    horizontalMatches.Add(nextGem);
-    //                else break;
-    //            }
-
-    //            if (horizontalMatches.Count >= 3)
-    //                matchedGems.AddRange(horizontalMatches);
-
-    //            // Kiểm tra hàng dọc
-    //            List<Gem> verticalMatches = new() { currentGem };
-    //            for (int i = 1; y + i < height; i++)
-    //            {
-    //                Gem nextGem = GetGemAt(x, y + i);
-    //                if (nextGem != null && nextGem.gemType == currentGem.gemType)
-    //                    verticalMatches.Add(nextGem);
-    //                else break;
-    //            }
-
-    //            if (verticalMatches.Count >= 3)
-    //                matchedGems.AddRange(verticalMatches);
-    //        }
-    //    }
-
-    //    matchedGems = matchedGems.Distinct().ToList();
-
-    //    foreach (var gem in matchedGems)
-    //    {
-    //        Debug.Log($"Matched Gem at ({gem.x}, {gem.y}) with type {gem.gemType}");
-    //    }
-
-    //    return matchedGems;
-    //}
     public List<Gem> CheckMatch()
     {
         int width = board.width;
         int height = board.height;
 
-        List<Gem> matchedGems = new();
+        HashSet<Gem> matchedGems = new();
         bool[,] alreadyMatched = new bool[width, height];
 
         for (int y = 0; y < height; y++)
@@ -173,7 +197,7 @@ public class GemManager : LiemMonoBehaviour
                 {
                     foreach (var g in horizontal)
                         alreadyMatched[g.x, g.y] = true;
-                    matchedGems.AddRange(horizontal);
+                    matchedGems.UnionWith(horizontal);
                 }
 
                 // Vertical check
@@ -189,12 +213,13 @@ public class GemManager : LiemMonoBehaviour
                 {
                     foreach (var g in vertical)
                         alreadyMatched[g.x, g.y] = true;
-                    matchedGems.AddRange(vertical);
+                    matchedGems.UnionWith(vertical);
                 }
             }
         }
 
-        return matchedGems.Distinct().ToList();
+        return matchedGems.ToList();
+
     }
 
     public void RemoveMatchedGems(List<Gem> matchedGems)
@@ -202,9 +227,11 @@ public class GemManager : LiemMonoBehaviour
         foreach (Gem gem in matchedGems)
         {
             gems.Remove(gem);
-            //Destroy(gem.gameObject);
             StartCoroutine(DestroyGemAfterDelay(gem, 0.3f));
         }
+        // Add Score
+        int points = matchedGems.Count * 20;
+        UIManager.Instance.AddScore(points);
     }
 
     private IEnumerator DestroyGemAfterDelay(Gem gem, float delay)
@@ -212,261 +239,73 @@ public class GemManager : LiemMonoBehaviour
         yield return new WaitForSeconds(delay);
         if (gem != null) Destroy(gem.gameObject);
     }
-
-
-    //public IEnumerator DropGemsCoroutine()
-    //{
-    //    if (isDropping) yield break;
-    //    isDropping = true;
-
-    //    int width = board.width;
-
-    //    bool anyGemDropped;
-
-    //    do
-    //    {
-    //        anyGemDropped = false;
-
-    //        // Tạo danh sách coroutine đang chạy cho từng cột
-    //        List<Coroutine> activeCoroutines = new();
-
-    //        for (int x = 0; x < width; x++)
-    //        {
-    //            //Coroutine columnRoutine = StartCoroutine(DropColumnRoutine(x, () => anyGemDropped = true));
-    //            //activeCoroutines.Add(columnRoutine);
-    //            yield return StartCoroutine(DropColumnRoutine(x, () => anyGemDropped = true));
-    //        }
-
-    //        // Đợi tất cả coroutine kết thúc
-    //        foreach (Coroutine c in activeCoroutines)
-    //        {
-    //            yield return c;
-    //        }
-
-    //        yield return new WaitForSeconds(0.1f);
-
-    //    } while (anyGemDropped);
-
-    //    isDropping = false;
-    //}
-    public IEnumerator DropGemsCoroutine(System.Action onAnyGemDropped = null)
+    public IEnumerator FillBoard()
     {
         int width = board.width;
-        List<Coroutine> dropCoroutines = new();
+        int height = board.height;
+        List<Coroutine> activeCoroutines = new();
 
         for (int x = 0; x < width; x++)
         {
-            Coroutine dropCoroutine = StartCoroutine(DropColumnRoutine(x, onAnyGemDropped));
-            dropCoroutines.Add(dropCoroutine);
-        }
-
-        // Đợi tất cả coroutine xong
-        foreach (var coroutine in dropCoroutines)
-        {
-            yield return coroutine;
-        }
-
-        yield return new WaitForSeconds(0.1f);
-    }
-
-
-
-
-    private Transform GetTileTransformAt(int x, int y)
-    {
-        Transform holder = board.transform.Find("Holder");
-        if (holder == null) return null;
-
-        // Có thể bạn sinh tile theo thứ tự (x * height + y)
-        int index = x * board.height + y;
-        if (index >= 0 && index < holder.childCount)
-            return holder.GetChild(index);
-
-        return null;
-    }
-    //private IEnumerator DropColumnRoutine(int x, System.Action onAnyGemDropped)
-    //{
-    //    int height = board.height;
-
-    //    for (int y = 0; y < height; y++)
-    //    {
-    //        if (GetGemAt(x, y) == null)
-    //        {
-    //            for (int aboveY = y + 1; aboveY < height; aboveY++)
-    //            {
-    //                Gem aboveGem = GetGemAt(x, aboveY);
-    //                if (aboveGem != null)
-    //                {
-    //                    Transform targetTile = GetTileTransformAt(x, y);
-    //                    if (targetTile == null) continue;
-
-    //                    Vector3 startPos = aboveGem.transform.position;
-    //                    Vector3 endPos = targetTile.position;
-
-    //                    aboveGem.transform.SetParent(targetTile);
-
-    //                    float elapsed = 0f;
-    //                    float duration = 0.2f;
-    //                    while (elapsed < duration)
-    //                    {
-    //                        aboveGem.transform.position = Vector3.Lerp(startPos, endPos, elapsed / duration);
-    //                        elapsed += Time.deltaTime;
-    //                        yield return null;
-    //                    }
-
-    //                    aboveGem.transform.position = endPos;
-    //                    aboveGem.transform.localPosition = Vector3.zero;
-
-    //                    gems.Remove(aboveGem);
-    //                    aboveGem.SetData(x, y);
-    //                    gems.Add(aboveGem);
-
-    //                    onAnyGemDropped?.Invoke(); // Gọi callback báo có gem rơi
-
-    //                    y--; // kiểm tra lại ô này
-    //                    yield return new WaitForSeconds(0.05f);
-    //                    break;
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
-    //private IEnumerator DropColumnRoutine(int x, System.Action onAnyGemDropped)
-    //{
-    //    int height = board.height;
-
-    //    for (int y = 0; y < height - 1; y++)
-    //    {
-    //        Gem currentGem = GetGemAt(x, y);
-    //        if (currentGem == null)
-    //        {
-    //            for (int y2 = y + 1; y2 < height; y2++)
-    //            {
-    //                Gem aboveGem = GetGemAt(x, y2);
-    //                if (aboveGem != null)
-    //                {
-    //                    Transform targetTile = GetTileTransformAt(x, y);
-    //                    if (targetTile == null) break;
-
-    //                    gems.Remove(aboveGem);
-    //                    aboveGem.SetData(x, y);
-    //                    gems.Add(aboveGem);
-
-    //                    Vector3 start = aboveGem.transform.position;
-    //                    Vector3 end = targetTile.position;
-    //                    aboveGem.transform.SetParent(targetTile);
-
-    //                    float elapsed = 0f, duration = 0.2f;
-    //                    while (elapsed < duration)
-    //                    {
-    //                        aboveGem.transform.position = Vector3.Lerp(start, end, elapsed / duration);
-    //                        elapsed += Time.deltaTime;
-    //                        yield return null;
-    //                    }
-
-    //                    aboveGem.transform.position = end;
-    //                    aboveGem.transform.localPosition = Vector3.zero;
-
-    //                    onAnyGemDropped?.Invoke();
-
-    //                    y--; // kiểm tra lại ô này
-    //                    yield return new WaitForSeconds(0.05f);
-    //                    break;
-    //                }
-    //            }
-    //        }
-    //    }
-    //}
-    private IEnumerator DropColumnRoutine(int x, System.Action onAnyGemDropped)
-    {
-        int height = board.height;
-        bool droppedAny = false;
-        List<IEnumerator> dropAnimations = new();
-
-        for (int y = 0; y < height - 1; y++)
-        {
-            if (GetGemAt(x, y) != null) continue;
-
-            for (int y2 = y + 1; y2 < height; y2++)
+            int emptySpaces = 0;
+            for (int y = 0; y < height; y++)
             {
-                Gem aboveGem = GetGemAt(x, y2);
-                if (aboveGem != null)
+                Gem gem = GetGemAt(x, y);
+                if (gem == null)
                 {
-                    Transform targetTile = GetTileTransformAt(x, y);
-                    if (targetTile == null) break;
+                    emptySpaces++;
+                }
+                else if (emptySpaces > 0)
+                {
+                    gem.y -= emptySpaces;
+                    Transform parent = board.transform.Find($"Holder/TitleCell_({x},{gem.y})");
+                    if (parent != null)
+                    {
+                        gem.transform.parent = parent;
+                        Coroutine moveCoroutine = StartCoroutine(MoveGem(gem.transform, parent.position));
+                        activeCoroutines.Add(moveCoroutine);
+                    }
+                }
+            }
 
-                    // Logic chuyển gem xuống
-                    gems.Remove(aboveGem);
-                    aboveGem.SetData(x, y);
-                    gems.Add(aboveGem);
-                    aboveGem.transform.SetParent(targetTile);
-
-                    dropAnimations.Add(MoveGemToPosition(aboveGem, targetTile.position));
-
-                    droppedAny = true;
-                    break;
+            for (int i = 0; i < emptySpaces; i++)
+            {
+                int spawnY = height - emptySpaces + i;
+                Transform parent = board.transform.Find($"Holder/TitleCell_({x},{spawnY})");
+                if (parent != null)
+                {
+                    Gem newGem = SpawnGem(x, spawnY, parent);
+                    newGem.transform.localPosition = Vector3.zero;
+                    newGem.transform.position += Vector3.up * 4f;
+                    Coroutine moveCoroutine = StartCoroutine(MoveGem(newGem.transform, parent.position));
+                    activeCoroutines.Add(moveCoroutine);
                 }
             }
         }
 
-        if (droppedAny) onAnyGemDropped?.Invoke();
-
-        // Chạy tất cả animation cùng lúc
-        List<Coroutine> running = new();
-        foreach (var anim in dropAnimations)
-        {
-            running.Add(StartCoroutine(anim));
-        }
-
-        foreach (var c in running)
-        {
-            yield return c;
-        }
-
-        yield return null;
+        // Wait until all coroutines finished
+        // Because Unity không cho yield return Coroutine[], ta đơn giản chờ
+        yield return new WaitForSeconds(0.35f); // Giả lập thời gian rớt tất cả (MoveGem đang set 0.3s -> đợi 0.35s cho chắc)
     }
-    private IEnumerator MoveGemToPosition(Gem gem, Vector3 targetPos)
-    {
-        Vector3 start = gem.transform.position;
-        float duration = 0.2f;
-        float elapsed = 0f;
 
-        while (elapsed < duration)
+    private IEnumerator MoveGem(Transform gem, Vector3 target)
+    {
+        float elapsedTime = 0f;
+        float duration = 0.3f;
+        Vector3 start = gem.position;
+
+        while (elapsedTime < duration)
         {
-            //gem.transform.position = Vector3.Lerp(start, targetPos, elapsed / duration);
-            //elapsed += Time.deltaTime;
-            //yield return null;
-            float t = elapsed / duration;
-            float easedT = EaseOutBounce(t);
-            gem.transform.position = Vector3.Lerp(start, targetPos, easedT);
-            elapsed += Time.deltaTime;
+            float t = elapsedTime / duration;
+            // Easing: SmoothStep (chậm đầu, nhanh cuối)
+            float easedT = t * t * (3f - 2f * t);
+
+            gem.position = Vector3.Lerp(start, target, easedT);
+            elapsedTime += Time.deltaTime;
             yield return null;
         }
 
-        gem.transform.position = targetPos;
-        gem.transform.localPosition = Vector3.zero;
-    }
-    private float EaseOutBounce(float t)
-    {
-        if (t < (1 / 2.75f))
-        {
-            return 7.5625f * t * t;
-        }
-        else if (t < (2 / 2.75f))
-        {
-            t -= 1.5f / 2.75f;
-            return 7.5625f * t * t + 0.75f;
-        }
-        else if (t < (2.5f / 2.75f))
-        {
-            t -= 2.25f / 2.75f;
-            return 7.5625f * t * t + 0.9375f;
-        }
-        else
-        {
-            t -= 2.625f / 2.75f;
-            return 7.5625f * t * t + 0.984375f;
-        }
+        gem.position = target; // Đặt chính xác
     }
 
 }
