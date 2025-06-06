@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using DG.Tweening;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -20,17 +21,20 @@ public class InputManager : MonoBehaviour
 
     public void OnGemClicked(Gem gem)
     {
+        SoundManager.Instance.PlayClick();
+
         if (selectedGem == null)
         {
             selectedGem = gem;
+            selectedGem.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 2, 0.5f);
             if (this.board != null) this.board.HighlightGemTile(gem);
         }
         else
         {
             if (AreAdjacent(selectedGem, gem))
             {
-                //GemManager.Instance.SwapGems(selectedGem, gem);
                 StartCoroutine(SwapAndHandle(selectedGem, gem));
+                gem.transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 2, 0.5f);
                 if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
 
                 selectedGem = null;
@@ -44,24 +48,29 @@ public class InputManager : MonoBehaviour
         }
     }
 
+
     private IEnumerator SwapAndHandle(Gem a, Gem b)
     {
         if (GemManager.Instance == null) yield break;
 
         GemManager.Instance.SwapGems(a, b);
-        yield return new WaitForSeconds(0.15f);
+        SoundManager.Instance.PlaySwap();
+
+        yield return new WaitForSeconds(0.25f);
 
         var matched = GemManager.Instance.CheckMatch();
         if (matched.Count == 0)
         {
             GemManager.Instance.SwapGems(a, b);
+            SoundManager.Instance.PlaySwap();
         }
         else
         {
-            UIManager.Instance.UseMove(); // giảm moves sau swap
+            UIManager.Instance.UseMove();
             yield return StartCoroutine(HandleMatchesAfterSwap());
         }
     }
+
 
 
 

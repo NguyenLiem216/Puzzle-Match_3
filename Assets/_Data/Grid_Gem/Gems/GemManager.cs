@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using DG.Tweening;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
@@ -156,12 +157,18 @@ public class GemManager : LiemMonoBehaviour
         var parentA = a.transform.parent;
         var parentB = b.transform.parent;
 
-        (b.transform.position, a.transform.position) = (a.transform.position, b.transform.position);
+        // Animate move position
+        float swapDuration = 0.25f;
+        a.transform.DOMove(parentB.position, swapDuration);
+        b.transform.DOMove(parentA.position, swapDuration);
+
+        // Swap logic data ngay lập tức
         (a.x, a.y, b.x, b.y) = (b.x, b.y, a.x, a.y);
 
         a.transform.SetParent(parentB);
         b.transform.SetParent(parentA);
     }
+
 
     public Gem GetGemAt(int x, int y)
     {
@@ -224,21 +231,39 @@ public class GemManager : LiemMonoBehaviour
 
     public void RemoveMatchedGems(List<Gem> matchedGems)
     {
+        if (matchedGems.Count > 0)
+            SoundManager.Instance.PlayMatch(); // 🎵 Play Match SFX
+
         foreach (Gem gem in matchedGems)
         {
             gems.Remove(gem);
             StartCoroutine(DestroyGemAfterDelay(gem, 0.3f));
         }
-        // Add Score
+
         int points = matchedGems.Count * 20;
         UIManager.Instance.AddScore(points);
     }
 
+
     private IEnumerator DestroyGemAfterDelay(Gem gem, float delay)
     {
         yield return new WaitForSeconds(delay);
-        if (gem != null) Destroy(gem.gameObject);
+
+        if (gem != null)
+        {
+            if (gem.TryGetComponent<SpriteRenderer>(out var sr))
+            {
+                Sequence seq = DOTween.Sequence();
+                seq.Join(gem.transform.DOScale(Vector3.zero, 0.3f)); // Scale nhỏ lại
+                seq.Join(sr.DOFade(0, 0.3f)); // Fade out
+
+                yield return seq.WaitForCompletion();
+            }
+
+            Destroy(gem.gameObject);
+        }
     }
+
     public IEnumerator FillBoard()
     {
         int width = board.width;

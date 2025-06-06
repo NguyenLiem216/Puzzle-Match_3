@@ -2,7 +2,7 @@
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using DG.Tweening; // <-- thêm dòng này
+using DG.Tweening;
 
 public class UIManager : MonoBehaviour
 {
@@ -11,6 +11,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private TMP_Text moveText;
     [SerializeField] private Button restartButton;
+
+     [SerializeField] private TMP_Text targetText;
 
     [Header("Win/Lose Panels")]
     [SerializeField] private GameObject winPanel;
@@ -35,7 +37,6 @@ public class UIManager : MonoBehaviour
         UpdateScoreUI();
         UpdateMoveUI();
 
-        // Ban đầu Panel scale nhỏ
         winPanel.transform.localScale = Vector3.zero;
         losePanel.transform.localScale = Vector3.zero;
     }
@@ -85,25 +86,37 @@ public class UIManager : MonoBehaviour
     {
         Debug.Log("You Win!");
         gameEnded = true;
-        Invoke(nameof(ShowWinPanel), 1.5f); // delay 1.5s
+        Invoke(nameof(ShowWinPanel), 1.5f);
     }
 
     private void Lose()
     {
         Debug.Log("You Lose!");
         gameEnded = true;
-        Invoke(nameof(ShowLosePanel), 1.5f); // delay 1.5s
+        Invoke(nameof(ShowLosePanel), 1.5f);
     }
 
-    private void ShowWinPanel()
+    public void ShowWinPanel()
     {
+        winPanel.transform.localScale = Vector3.zero;
         winPanel.SetActive(true);
-        winPanel.transform.DOScale(1, 0.5f).SetEase(Ease.OutBack); // scale mượt + bounce nhẹ
+        winPanel.transform.DOScale(Vector3.one, 0.5f).SetEase(Ease.OutBack); 
     }
 
-    private void ShowLosePanel()
+    public void ShowLosePanel()
     {
+        losePanel.transform.localScale = Vector3.zero;
         losePanel.SetActive(true);
-        losePanel.transform.DOScale(1, 0.5f).SetEase(Ease.OutBack);
+        losePanel.transform.DOScale(Vector3.one, 0.5f).SetEase(Ease.OutBack);
     }
+    public void SetTarget(int target)
+    {
+        targetText.text = "Target: " + target.ToString();
+    }
+
+    public void SetMoveLimit(int moveLimit)
+    {
+        moveText.text = "Moves: " + moveLimit.ToString();
+    }
+
 }
