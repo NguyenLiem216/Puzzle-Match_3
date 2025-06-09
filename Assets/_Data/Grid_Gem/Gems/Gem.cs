@@ -1,12 +1,13 @@
 ﻿using UnityEngine;
+using UnityEngine.EventSystems;
 
 [RequireComponent(typeof(BoxCollider2D))]
-public class Gem : LiemMonoBehaviour
+public class Gem : LiemMonoBehaviour, IPointerDownHandler
 {
     public int x, y;
     public string gemType;
 
-    private void OnMouseDown()
+    public void OnPointerDown(PointerEventData eventData)
     {
         InputManager.Instance.OnGemClicked(this);
     }

@@ -46,22 +46,6 @@ public class GemManager : LiemMonoBehaviour
     }
 
 
-    //public Gem SpawnGem(int x, int y, Transform parent)
-    //{
-    //    int randomIndex = Random.Range(0, gemPrefabs.Count);
-    //    GameObject gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
-    //    gemGO.transform.localScale = Vector3.one * 0.21f;
-    //    gemGO.transform.localPosition = Vector3.zero;
-
-    //    if (gemGO.TryGetComponent<Gem>(out var gem))
-    //    {
-    //        gem.SetData(x, y);
-    //        gems.Add(gem);
-    //    }
-    //    gem.gameObject.SetActive(true);
-
-    //    return gem;
-    //}
     public Gem SpawnGem(int x, int y, Transform parent)
     {
         int maxTry = 5;
@@ -168,7 +152,19 @@ public class GemManager : LiemMonoBehaviour
         a.transform.SetParent(parentB);
         b.transform.SetParent(parentA);
     }
+    public void SwapGemsDataOnly(Gem a, Gem b)
+    {
+        // Chỉ swap logic data
+        (a.x, a.y, b.x, b.y) = (b.x, b.y, a.x, a.y);
 
+        var parentA = a.transform.parent;
+        var parentB = b.transform.parent;
+
+        a.transform.SetParent(parentB, true);
+        b.transform.SetParent(parentA, true);
+
+        // Không DOMove
+    }
 
     public Gem GetGemAt(int x, int y)
     {
@@ -259,7 +255,7 @@ public class GemManager : LiemMonoBehaviour
 
                 yield return seq.WaitForCompletion();
             }
-
+            DOTween.Kill(gem.transform);
             Destroy(gem.gameObject);
         }
     }
@@ -315,22 +311,89 @@ public class GemManager : LiemMonoBehaviour
 
     private IEnumerator MoveGem(Transform gem, Vector3 target)
     {
+        if (gem == null) yield break; // thêm dòng này check null trước
+
         float elapsedTime = 0f;
         float duration = 0.3f;
         Vector3 start = gem.position;
 
         while (elapsedTime < duration)
         {
-            float t = elapsedTime / duration;
-            // Easing: SmoothStep (chậm đầu, nhanh cuối)
-            float easedT = t * t * (3f - 2f * t);
+            if (gem == null) yield break; // thêm check trong khi chạy tween
 
+            float t = elapsedTime / duration;
+            float easedT = t * t * (3f - 2f * t);
             gem.position = Vector3.Lerp(start, target, easedT);
+
             elapsedTime += Time.deltaTime;
             yield return null;
         }
 
-        gem.position = target; // Đặt chính xác
+        if (gem != null) gem.position = target; // cuối cùng set đúng vị trí
+    }
+    public int GetBoardWidth()
+    {
+        return board.width;
+    }
+
+    public int GetBoardHeight()
+    {
+        return board.height;
+    }
+    public IEnumerator ShuffleBoard()
+    {
+        Debug.LogWarning("🔀 Shuffle board vì bị deadlock...");
+
+        // Khoá Input
+        InputManager.Instance.LockInput();
+
+        // 1. Lấy tất cả các gem hiện tại
+        var allGems = gems.ToList(); // clone list ra
+
+        // 2. Shuffle bằng Fisher-Yates
+        for (int i = 0; i < allGems.Count; i++)
+        {
+            int randomIndex = Random.Range(i, allGems.Count);
+            (allGems[i], allGems[randomIndex]) = (allGems[randomIndex], allGems[i]);
+        }
+
+        // 3. Gán lại vị trí gem
+        int width = board.width;
+        int height = board.height;
+
+        int index = 0;
+        Sequence shuffleSequence = DOTween.Sequence();
+
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                if (index >= allGems.Count) break;
+
+                Gem gem = allGems[index];
+                gem.x = x;
+                gem.y = y;
+
+                Transform newParent = board.transform.Find($"Holder/TitleCell_({x},{y})");
+                if (newParent != null)
+                {
+                    gem.transform.SetParent(newParent);
+
+                    // Jump tới vị trí mới với hiệu ứng
+                    var tween = gem.transform.DOJump(newParent.position, 0.5f, 1, 0.5f).SetEase(Ease.OutQuad);
+
+                    // Join vào Sequence
+                    shuffleSequence.Join(tween);
+                }
+                index++;
+            }
+        }
+
+        // 4. Đợi tất cả các tween move xong
+        yield return shuffleSequence.WaitForCompletion();
+
+        // 5. Mở lại Input
+        InputManager.Instance.UnlockInput();
     }
 
 }

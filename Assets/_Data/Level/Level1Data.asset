@@ -12,5 +12,5 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: efbb41c2e37ec1d41bb031cef9acb688, type: 3}
   m_Name: Level1Data
   m_EditorClassIdentifier: 
-  targetScore: 1000
-  moveLimit: 15
+  targetScore: 100000
+  moveLimit: 500

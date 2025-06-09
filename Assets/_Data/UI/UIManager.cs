@@ -11,8 +11,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private TMP_Text scoreText;
     [SerializeField] private TMP_Text moveText;
     [SerializeField] private Button restartButton;
+    private LevelManager levelManager;
 
-     [SerializeField] private TMP_Text targetText;
+
+    [SerializeField] private TMP_Text targetText;
 
     [Header("Win/Lose Panels")]
     [SerializeField] private GameObject winPanel;
@@ -20,9 +22,10 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Button winPlayAgainButton;
     [SerializeField] private Button losePlayAgainButton;
 
-    private int score = 0;
-    private int moves = 10;
-    private readonly int targetScore = 1000;
+    private int score;
+    private int currentMoves;
+    private int targetScore;
+    //private readonly int targetScore = 1000;
     private bool gameEnded = false;
 
     private void Awake()
@@ -34,12 +37,25 @@ public class UIManager : MonoBehaviour
         winPlayAgainButton.onClick.AddListener(RestartGame);
         losePlayAgainButton.onClick.AddListener(RestartGame);
 
+
+        this.levelManager = FindObjectOfType<LevelManager>();
         UpdateScoreUI();
         UpdateMoveUI();
 
         winPanel.transform.localScale = Vector3.zero;
         losePanel.transform.localScale = Vector3.zero;
     }
+
+    private void Start()
+    {
+        if (levelManager != null && levelManager.levelData != null)
+        {
+            this.currentMoves = levelManager.levelData.moveLimit;
+            this.targetScore = levelManager.levelData.targetScore;
+            UpdateMoveUI();
+        }
+    }
+
 
     public void AddScore(int amount)
     {
@@ -58,10 +74,10 @@ public class UIManager : MonoBehaviour
     {
         if (gameEnded) return;
 
-        moves--;
+        currentMoves--;
         UpdateMoveUI();
 
-        if (moves <= 0)
+        if (currentMoves <= 0)
         {
             Lose();
         }
@@ -74,7 +90,7 @@ public class UIManager : MonoBehaviour
 
     private void UpdateMoveUI()
     {
-        moveText.text = "Moves: " + moves;
+        moveText.text = "Moves: " + currentMoves;
     }
 
     private void RestartGame()

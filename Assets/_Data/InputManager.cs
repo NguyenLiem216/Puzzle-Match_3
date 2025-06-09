@@ -9,6 +9,8 @@ public class InputManager : MonoBehaviour
 
     private Gem selectedGem;
     private BoardManager board;
+    private bool isInputLocked = false;
+
 
     private void Awake()
     {
@@ -21,6 +23,7 @@ public class InputManager : MonoBehaviour
 
     public void OnGemClicked(Gem gem)
     {
+        if (isInputLocked) return;
         SoundManager.Instance.PlayClick();
 
         if (selectedGem == null)
@@ -52,6 +55,7 @@ public class InputManager : MonoBehaviour
     private IEnumerator SwapAndHandle(Gem a, Gem b)
     {
         if (GemManager.Instance == null) yield break;
+        isInputLocked = true;
 
         GemManager.Instance.SwapGems(a, b);
         SoundManager.Instance.PlaySwap();
@@ -69,6 +73,7 @@ public class InputManager : MonoBehaviour
             UIManager.Instance.UseMove();
             yield return StartCoroutine(HandleMatchesAfterSwap());
         }
+        isInputLocked = false;
     }
 
 
@@ -95,7 +100,110 @@ public class InputManager : MonoBehaviour
             yield return StartCoroutine(GemManager.Instance.FillBoard()); // <-- Đợi fill xong
             yield return new WaitForSeconds(0.1f); // Đợi nhỏ sau fill
         }
+        if (!HasValidMove())
+        {
+            yield return StartCoroutine(GemManager.Instance.ShuffleBoard());
+        }
+
+    }
+    public bool HasValidMove()
+    {
+        int width = board.width;
+        int height = board.height;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Gem current = GemManager.Instance.GetGemAt(x, y);
+                if (current == null) continue;
+
+                // Check Right
+                if (x < width - 1)
+                {
+                    Gem rightGem = GemManager.Instance.GetGemAt(x + 1, y);
+                    if (rightGem != null && CanSwapAndMatch(current, rightGem))
+                        return true;
+                }
+
+                // Check Up
+                if (y < height - 1)
+                {
+                    Gem upGem = GemManager.Instance.GetGemAt(x, y + 1);
+                    if (upGem != null && CanSwapAndMatch(current, upGem))
+                        return true;
+                }
+            }
+        }
+        return false;
     }
 
+    private bool CanSwapAndMatch(Gem a, Gem b)
+    {
+        SwapTemp(a, b);
+
+        bool match = CheckMatchAt(a.x, a.y) || CheckMatchAt(b.x, b.y);
+
+        SwapTemp(a, b); // swap lại
+        return match;
+    }
+
+    private void SwapTemp(Gem a, Gem b)
+    {
+        (a.x, b.x) = (b.x, a.x);
+        (a.y, b.y) = (b.y, a.y);
+    }
+
+    private bool CheckMatchAt(int x, int y)
+    {
+        Gem gem = GemManager.Instance.GetGemAt(x, y);
+        if (gem == null) return false;
+
+        string type = gem.gemType;
+
+        // Horizontal check
+        int count = 1;
+        for (int i = x - 1; i >= 0; i--)
+        {
+            Gem neighbor = GemManager.Instance.GetGemAt(i, y);
+            if (neighbor != null && neighbor.gemType == type) count++;
+            else break;
+        }
+        for (int i = x + 1; i < board.width; i++)
+        {
+            Gem neighbor = GemManager.Instance.GetGemAt(i, y);
+            if (neighbor != null && neighbor.gemType == type) count++;
+            else break;
+        }
+        if (count >= 3) return true;
+
+        // Vertical check
+        count = 1;
+        for (int j = y - 1; j >= 0; j--)
+        {
+            Gem neighbor = GemManager.Instance.GetGemAt(x, j);
+            if (neighbor != null && neighbor.gemType == type) count++;
+            else break;
+        }
+        for (int j = y + 1; j < board.height; j++)
+        {
+            Gem neighbor = GemManager.Instance.GetGemAt(x, j);
+            if (neighbor != null && neighbor.gemType == type) count++;
+            else break;
+        }
+        if (count >= 3) return true;
+
+        return false;
+    }
+
+    public void LockInput()
+    {
+        isInputLocked = true;
+    }
+
+    public void UnlockInput()
+    {
+        isInputLocked = false;
+    }
 
 }
