@@ -30,7 +30,7 @@ public class InputManager : MonoBehaviour
         {
             selectedGem = gem;
             selectedGem.transform.DOPunchScale(Vector3.one * 0.15f, 0.2f, 2, 0.5f);
-            if (this.board != null) this.board.HighlightGemTile(gem);
+            //if (this.board != null) this.board.HighlightGemTile(gem);
         }
         else
         {
@@ -38,15 +38,15 @@ public class InputManager : MonoBehaviour
             {
                 StartCoroutine(SwapAndHandle(selectedGem, gem));
                 gem.transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 2, 0.5f);
-                if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
+                //if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
 
                 selectedGem = null;
             }
             else
             {
-                if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
+                //if (this.board != null) this.board.UnhighlightGemTile(selectedGem);
                 selectedGem = gem;
-                if (this.board != null) this.board.HighlightGemTile(gem);
+                //if (this.board != null) this.board.HighlightGemTile(gem);
             }
         }
     }
