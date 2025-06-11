@@ -1,67 +1,86 @@
-﻿//using UnityEngine;
-//using System.Collections.Generic;
-//using DG.Tweening;
+﻿using System.Collections;
+using UnityEngine;
+using DG.Tweening;
 
-//public class HintManager : MonoBehaviour
-//{
-//    public static HintManager Instance;
+public class HintManager : MonoBehaviour
+{
+    public float idleDelay = 5f;
+    private float idleTimer = 0f;
+    private bool hintShown = false;
+    private HintData currentHint;
+    private Tween moveA, moveB;
 
-//    private float idleTime = 0f;
-//    public float timeBeforeHint = 5f;
-//    private bool hintShown = false;
+    void Update()
+    {
+        if (UIManager.Instance == null) return;
+        if (Input.anyKeyDown || Input.GetMouseButtonDown(0))
+        {
+            idleTimer = 0f;
+            ClearHint();
+            return;
+        }
 
-//    private void Awake()
-//    {
-//        if (Instance == null) Instance = this;
-//        else Destroy(gameObject);
-//    }
+        idleTimer += Time.deltaTime;
 
-//    private void Update()
-//    {
-//        idleTime += Time.deltaTime;
+        if (!hintShown && idleTimer >= idleDelay)
+        {
+            ShowHint();
+        }
+    }
 
-//        if (idleTime >= timeBeforeHint && !hintShown)
-//        {
-//            ShowHint();
-//            hintShown = true;
-//        }
-//    }
+    void ShowHint()
+    {
+        currentHint = GemManager.Instance.FindBestHint();
+        if (currentHint == null) return;
 
-//    public void ResetTimer()
-//    {
-//        idleTime = 0f;
-//        hintShown = false;
-//    }
+        hintShown = true;
 
-//    private void ShowHint()
-//    {
-//        // Tìm 1 cặp swap được
-//        foreach (Gem gem in GemManager.Instance.GetAllGems())
-//        {
-//            foreach (Vector2Int dir in new Vector2Int[] { Vector2Int.right, Vector2Int.up })
-//            {
-//                Gem neighbor = GemManager.Instance.GetGemAt(gem.x + dir.x, gem.y + dir.y);
-//                if (neighbor != null && CanSwapAndMatch(gem, neighbor))
-//                {
-//                    // Highlight
-//                    gem.transform.DOShakeScale(1f, 0.1f, 5, 90f);
-//                    neighbor.transform.DOShakeScale(1f, 0.1f, 5, 90f);
-//                    return;
-//                }
-//            }
-//        }
-//    }
+        Vector3 posA = currentHint.sourceGem.transform.position;
+        Vector3 posB = currentHint.targetGem.transform.position;
 
-//    private bool CanSwapAndMatch(Gem a, Gem b)
-//    {
-//        (a.x, b.x) = (b.x, a.x);
-//        (a.y, b.y) = (b.y, a.y);
+        Vector3 dir = (posB - posA).normalized * 0.15f; // Đẩy nhẹ về phía nhau
 
-//        bool matchFound = GemManager.Instance.CheckMatch().Count > 0;
+        moveA = currentHint.sourceGem.transform
+            .DOMove(posA + dir, 0.3f)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetEase(Ease.InOutSine);
 
-//        (a.x, b.x) = (b.x, a.x);
-//        (a.y, b.y) = (b.y, a.y);
+        moveB = currentHint.targetGem.transform
+            .DOMove(posB - dir, 0.3f)
+            .SetLoops(-1, LoopType.Yoyo)
+            .SetEase(Ease.InOutSine);
+    }
 
-//        return matchFound;
-//    }
-//}
+    void ClearHint()
+    {
+        hintShown = false;
+        idleTimer = 0f;
+
+        if (moveA != null && moveA.IsActive()) moveA.Kill(true);
+        if (moveB != null && moveB.IsActive()) moveB.Kill(true);
+
+        if (currentHint != null)
+        {
+            // Reset vị trí về đúng chỗ (đề phòng lệch)
+            var gemA = currentHint.sourceGem;
+            var gemB = currentHint.targetGem;
+
+            if (gemA != null)
+            {
+                Transform parent = gemA.transform.parent;
+                if (parent != null)
+                    gemA.transform.position = parent.position;
+            }
+
+            if (gemB != null)
+            {
+                Transform parent = gemB.transform.parent;
+                if (parent != null)
+                    gemB.transform.position = parent.position;
+            }
+        }
+
+        currentHint = null;
+    }
+
+}

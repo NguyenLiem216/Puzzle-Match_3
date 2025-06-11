@@ -17,6 +17,8 @@ public class BoardManager : LiemMonoBehaviour
     private GameObject selectedTile;
     private Color originalTileColor = Color.white;
     private SpriteRenderer selectedTileSpriteRenderer;
+    private Dictionary<Vector2Int, Transform> tileMap = new();
+
 
     protected override void Start()
     {
@@ -90,6 +92,8 @@ public class BoardManager : LiemMonoBehaviour
                 tile.SetActive(true);
                 tile.transform.parent = tileContainer;
                 tile.transform.localScale = Vector3.one * cellSize;
+                tileMap[new Vector2Int(x, y)] = tile.transform;
+
 
                 GemManager.Instance.SpawnGem(x, y, tile.transform);
             }
@@ -155,4 +159,10 @@ public class BoardManager : LiemMonoBehaviour
             selectedTile = null;
         }
     }
+    public Transform GetTileAt(int x, int y)
+    {
+        tileMap.TryGetValue(new Vector2Int(x, y), out Transform tile);
+        return tile;
+    }
+
 }

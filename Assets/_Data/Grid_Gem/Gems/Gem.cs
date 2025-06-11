@@ -9,6 +9,9 @@ public class Gem : LiemMonoBehaviour, IPointerDownHandler
 
     public void OnPointerDown(PointerEventData eventData)
     {
+        if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            return;
+
         InputManager.Instance.OnGemClicked(this);
     }
 
@@ -29,5 +32,6 @@ public class Gem : LiemMonoBehaviour, IPointerDownHandler
     {
         this.x = x;
         this.y = y;
+        this.name = $"{gemType}({x},{y})";
     }
 }

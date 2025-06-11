@@ -8,7 +8,7 @@ public class GemManager : LiemMonoBehaviour
 {
     public static GemManager Instance { get; private set; }
 
-    [SerializeField] private List<GameObject> gemPrefabs;
+    
 
     private readonly List<Gem> gems = new();
     private BoardManager board;
@@ -25,25 +25,7 @@ public class GemManager : LiemMonoBehaviour
     {
         base.Start();
         board = FindObjectOfType<BoardManager>();
-    }
-
-    protected override void LoadComponents()
-    {
-        base.LoadComponents();
-        this.LoadGems();
-    }
-
-    protected virtual void LoadGems()
-    {
-        if (this.gemPrefabs?.Count > 0) return;
-        foreach (Transform child in transform)
-        {
-            GameObject obj = child.gameObject;
-            if (obj.GetComponent<Gem>() == null) return;
-            this.gemPrefabs.Add(obj);
-        }
-        Debug.Log(transform.name + ": LoadGems", gameObject);
-    }
+    }    
 
 
     public Gem SpawnGem(int x, int y, Transform parent)
@@ -53,13 +35,10 @@ public class GemManager : LiemMonoBehaviour
         bool foundValid = false;
 
         GameObject gemGO;
+
         for (int tryCount = 0; tryCount < maxTry; tryCount++)
         {
-            int randomIndex = Random.Range(0, gemPrefabs.Count);
-            gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
-            gemGO.transform.localScale = Vector3.one * 0.21f;
-            gemGO.transform.localPosition = Vector3.zero;
-
+            gemGO = GemPoolManager.Instance.GetRandomGem(parent);
             if (gemGO.TryGetComponent<Gem>(out gem))
             {
                 gem.SetData(x, y);
@@ -67,20 +46,16 @@ public class GemManager : LiemMonoBehaviour
                 if (!WouldFormMatch(x, y, gem.gemType))
                 {
                     foundValid = true;
-                    break; // Tìm được viên không match
+                    break;
                 }
             }
-            Destroy(gemGO); // Destroy nếu không hợp lệ
+
+            GemPoolManager.Instance.ReturnGem(gemGO);
         }
 
         if (!foundValid)
         {
-            // Nếu thử 5 lần mà không tìm ra -> phải accept viên random
-            int randomIndex = Random.Range(0, gemPrefabs.Count);
-            gemGO = Instantiate(gemPrefabs[randomIndex], parent.position, Quaternion.identity, parent);
-            gemGO.transform.localScale = Vector3.one * 0.21f;
-            gemGO.transform.localPosition = Vector3.zero;
-
+            gemGO = GemPoolManager.Instance.GetRandomGem(parent);
             if (gemGO.TryGetComponent<Gem>(out gem))
             {
                 gem.SetData(x, y);
@@ -166,6 +141,51 @@ public class GemManager : LiemMonoBehaviour
         // Không DOMove
     }
 
+    private void SwapGemsData(Gem a, Gem b)
+    {
+        (a.x, b.x) = (b.x, a.x);
+        (a.y, b.y) = (b.y, a.y);
+    }
+    private int CountPotentialMatch(Gem gem)
+    {
+        if (gem == null) return 0;
+
+        string type = gem.gemType;
+        int x = gem.x;
+        int y = gem.y;
+
+        int horizontal = 1;
+        for (int i = x - 1; i >= 0; i--)
+        {
+            var g = GetGemAt(i, y);
+            if (g != null && g.gemType == type) horizontal++;
+            else break;
+        }
+        for (int i = x + 1; i < board.width; i++)
+        {
+            var g = GetGemAt(i, y);
+            if (g != null && g.gemType == type) horizontal++;
+            else break;
+        }
+
+        int vertical = 1;
+        for (int j = y - 1; j >= 0; j--)
+        {
+            var g = GetGemAt(x, j);
+            if (g != null && g.gemType == type) vertical++;
+            else break;
+        }
+        for (int j = y + 1; j < board.height; j++)
+        {
+            var g = GetGemAt(x, j);
+            if (g != null && g.gemType == type) vertical++;
+            else break;
+        }
+
+        return Mathf.Max(horizontal, vertical);
+    }
+
+
     public Gem GetGemAt(int x, int y)
     {
         return gems.FirstOrDefault(g => g.x == x && g.y == y);
@@ -228,7 +248,7 @@ public class GemManager : LiemMonoBehaviour
     public void RemoveMatchedGems(List<Gem> matchedGems)
     {
         if (matchedGems.Count > 0)
-            SoundManager.Instance.PlayMatch(); // 🎵 Play Match SFX
+            SoundManager.Instance.PlayMatch();
 
         foreach (Gem gem in matchedGems)
         {
@@ -250,15 +270,17 @@ public class GemManager : LiemMonoBehaviour
             if (gem.TryGetComponent<SpriteRenderer>(out var sr))
             {
                 Sequence seq = DOTween.Sequence();
-                seq.Join(gem.transform.DOScale(Vector3.zero, 0.3f)); // Scale nhỏ lại
-                seq.Join(sr.DOFade(0, 0.3f)); // Fade out
+                seq.Join(gem.transform.DOScale(Vector3.zero, 0.3f));
+                seq.Join(sr.DOFade(0, 0.3f));
 
                 yield return seq.WaitForCompletion();
             }
+
             DOTween.Kill(gem.transform);
-            Destroy(gem.gameObject);
+            GemPoolManager.Instance.ReturnGem(gem.gameObject);
         }
     }
+
 
     public IEnumerator FillBoard()
     {
@@ -279,7 +301,7 @@ public class GemManager : LiemMonoBehaviour
                 else if (emptySpaces > 0)
                 {
                     gem.y -= emptySpaces;
-                    Transform parent = board.transform.Find($"Holder/TitleCell_({x},{gem.y})");
+                    Transform parent = board.GetTileAt(x, gem.y);
                     if (parent != null)
                     {
                         gem.transform.parent = parent;
@@ -292,7 +314,7 @@ public class GemManager : LiemMonoBehaviour
             for (int i = 0; i < emptySpaces; i++)
             {
                 int spawnY = height - emptySpaces + i;
-                Transform parent = board.transform.Find($"Holder/TitleCell_({x},{spawnY})");
+                Transform parent = board.GetTileAt(x, spawnY);
                 if (parent != null)
                 {
                     Gem newGem = SpawnGem(x, spawnY, parent);
@@ -374,7 +396,7 @@ public class GemManager : LiemMonoBehaviour
                 gem.x = x;
                 gem.y = y;
 
-                Transform newParent = board.transform.Find($"Holder/TitleCell_({x},{y})");
+                Transform newParent = board.GetTileAt(x, y);
                 if (newParent != null)
                 {
                     gem.transform.SetParent(newParent);
@@ -395,5 +417,124 @@ public class GemManager : LiemMonoBehaviour
         // 5. Mở lại Input
         InputManager.Instance.UnlockInput();
     }
+    public HintData FindBestHint()
+    {
+        int width = board.width;
+        int height = board.height;
+        HintData bestHint = null;
 
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Gem a = GetGemAt(x, y);
+                if (a == null) continue;
+
+                Vector2Int[] dirs = { new(1, 0), new(0, 1) };
+
+                foreach (var dir in dirs)
+                {
+                    int newX = x + dir.x;
+                    int newY = y + dir.y;
+                    Gem b = GetGemAt(newX, newY);
+                    if (b == null) continue;
+
+                    SwapGemsData(a, b);
+
+                    int matchCount = CountPotentialMatch(a) + CountPotentialMatch(b);
+
+                    SwapGemsData(a, b);
+
+                    if (matchCount >= 3 && (bestHint == null || matchCount > bestHint.matchCount))
+                    {
+                        bestHint = new HintData(a, b, matchCount);
+                    }
+                }
+            }
+        }
+
+        return bestHint;
+    }
+    public bool HasValidMove()
+    {
+        int width = board.width;
+        int height = board.height;
+
+        for (int x = 0; x < width; x++)
+        {
+            for (int y = 0; y < height; y++)
+            {
+                Gem currentGem = GetGemAt(x, y);
+                if (currentGem == null) continue;
+
+                if (x < width - 1)
+                {
+                    Gem rightGem = GetGemAt(x + 1, y);
+                    if (rightGem != null && CanSwapAndMatch(currentGem, rightGem))
+                        return true;
+                }
+
+                if (y < height - 1)
+                {
+                    Gem upGem = GetGemAt(x, y + 1);
+                    if (upGem != null && CanSwapAndMatch(currentGem, upGem))
+                        return true;
+                }
+            }
+        }
+        return false;
+    }
+    private bool CanSwapAndMatch(Gem a, Gem b)
+    {
+        GemManager.Instance.SwapGemsDataOnly(a, b);
+
+        bool matchFound = HasMatch(a) || HasMatch(b);
+
+        GemManager.Instance.SwapGemsDataOnly(a, b); // Swap lại về
+
+        return matchFound;
+    }
+    private bool HasMatch(Gem gem)
+    {
+        if (gem == null) return false;
+
+        string type = gem.gemType;
+        int x = gem.x;
+        int y = gem.y;
+
+        int count = 1;
+
+        // Check Horizontal
+        for (int i = x - 1; i >= 0; i--)
+        {
+            Gem checkGem = GemManager.Instance.GetGemAt(i, y);
+            if (checkGem != null && checkGem.gemType == type) count++;
+            else break;
+        }
+        for (int i = x + 1; i < board.width; i++)
+        {
+            Gem checkGem = GemManager.Instance.GetGemAt(i, y);
+            if (checkGem != null && checkGem.gemType == type) count++;
+            else break;
+        }
+        if (count >= 3) return true;
+
+        // Check Vertical
+        count = 1;
+        for (int j = y - 1; j >= 0; j--)
+        {
+            Gem checkGem = GemManager.Instance.GetGemAt(x, j);
+            if (checkGem != null && checkGem.gemType == type) count++;
+            else break;
+        }
+        for (int j = y + 1; j < board.height; j++)
+        {
+            Gem checkGem = GemManager.Instance.GetGemAt(x, j);
+            if (checkGem != null && checkGem.gemType == type) count++;
+            else break;
+        }
+        if (count >= 3) return true;
+
+        return false;
+    }
 }

@@ -17,11 +17,11 @@ public class SoundManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // 👈 Quan trọng: Giữ lại khi load scene mới
+            DontDestroyOnLoad(gameObject);
         }
         else
         {
-            Destroy(gameObject); // Nếu đã có rồi thì destroy thêm
+            Destroy(gameObject);
         }
     }
 

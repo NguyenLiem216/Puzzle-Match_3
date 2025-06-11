@@ -102,6 +102,7 @@ public class UIManager : MonoBehaviour
     {
         Debug.Log("You Win!");
         gameEnded = true;
+        InputManager.Instance.LockInput();
         Invoke(nameof(ShowWinPanel), 1.5f);
     }
 
@@ -109,6 +110,7 @@ public class UIManager : MonoBehaviour
     {
         Debug.Log("You Lose!");
         gameEnded = true;
+        InputManager.Instance.LockInput();
         Invoke(nameof(ShowLosePanel), 1.5f);
     }
 

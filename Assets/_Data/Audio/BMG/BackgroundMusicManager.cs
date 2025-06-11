@@ -10,12 +10,12 @@ public class BackgroundMusicManager : MonoBehaviour
         if (Instance == null)
         {
             Instance = this;
-            DontDestroyOnLoad(gameObject); // giữ nhạc qua các scene
+            DontDestroyOnLoad(gameObject);
             audioSource = GetComponent<AudioSource>();
         }
         else
         {
-            Destroy(gameObject); // chỉ giữ 1
+            Destroy(gameObject);
         }
     }
 

@@ -24,6 +24,9 @@ public class InputManager : MonoBehaviour
     public void OnGemClicked(Gem gem)
     {
         if (isInputLocked) return;
+        var hintMgr = FindObjectOfType<HintManager>();
+        if (hintMgr != null) hintMgr.SendMessage("ClearHint");
+
         SoundManager.Instance.PlayClick();
 
         if (selectedGem == null)
@@ -106,95 +109,12 @@ public class InputManager : MonoBehaviour
         }
 
     }
+
     public bool HasValidMove()
     {
-        int width = board.width;
-        int height = board.height;
-
-        for (int x = 0; x < width; x++)
-        {
-            for (int y = 0; y < height; y++)
-            {
-                Gem current = GemManager.Instance.GetGemAt(x, y);
-                if (current == null) continue;
-
-                // Check Right
-                if (x < width - 1)
-                {
-                    Gem rightGem = GemManager.Instance.GetGemAt(x + 1, y);
-                    if (rightGem != null && CanSwapAndMatch(current, rightGem))
-                        return true;
-                }
-
-                // Check Up
-                if (y < height - 1)
-                {
-                    Gem upGem = GemManager.Instance.GetGemAt(x, y + 1);
-                    if (upGem != null && CanSwapAndMatch(current, upGem))
-                        return true;
-                }
-            }
-        }
-        return false;
+        return GemManager.Instance.HasValidMove();
     }
 
-    private bool CanSwapAndMatch(Gem a, Gem b)
-    {
-        SwapTemp(a, b);
-
-        bool match = CheckMatchAt(a.x, a.y) || CheckMatchAt(b.x, b.y);
-
-        SwapTemp(a, b); // swap lại
-        return match;
-    }
-
-    private void SwapTemp(Gem a, Gem b)
-    {
-        (a.x, b.x) = (b.x, a.x);
-        (a.y, b.y) = (b.y, a.y);
-    }
-
-    private bool CheckMatchAt(int x, int y)
-    {
-        Gem gem = GemManager.Instance.GetGemAt(x, y);
-        if (gem == null) return false;
-
-        string type = gem.gemType;
-
-        // Horizontal check
-        int count = 1;
-        for (int i = x - 1; i >= 0; i--)
-        {
-            Gem neighbor = GemManager.Instance.GetGemAt(i, y);
-            if (neighbor != null && neighbor.gemType == type) count++;
-            else break;
-        }
-        for (int i = x + 1; i < board.width; i++)
-        {
-            Gem neighbor = GemManager.Instance.GetGemAt(i, y);
-            if (neighbor != null && neighbor.gemType == type) count++;
-            else break;
-        }
-        if (count >= 3) return true;
-
-        // Vertical check
-        count = 1;
-        for (int j = y - 1; j >= 0; j--)
-        {
-            Gem neighbor = GemManager.Instance.GetGemAt(x, j);
-            if (neighbor != null && neighbor.gemType == type) count++;
-            else break;
-        }
-        for (int j = y + 1; j < board.height; j++)
-        {
-            Gem neighbor = GemManager.Instance.GetGemAt(x, j);
-            if (neighbor != null && neighbor.gemType == type) count++;
-            else break;
-        }
-        if (count >= 3) return true;
-
-        return false;
-    }
 
     public void LockInput()
     {
